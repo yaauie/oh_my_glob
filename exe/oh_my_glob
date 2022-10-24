@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+
+def print_help_and_exit(reason=nil)
+  if reason
+    puts "ERROR: #{reason}\n\n"
+  end
+
+  puts <<~HELP
+    Usage: #{$PROGRAM_NAME} pattern [flags]
+
+        pattern : an appropriately shell-escaped glob-pattern
+                  hint: use quotes to prevent your shell from
+                  expanding the glob
+          flags : zero or more comma-separated named flags to
+                  use with ruby's glob matcher
+
+    Supported Flags:
+
+      DOTMATCH  : The '*' wildcard matches filenames starting with “.”
+      EXTGLOB   : Allows file globbing through “{a,b}”
+      NOESCAPE  : Disables escapes
+      PATHNAME  : Wildcards do not match directory separators
+      SHORTNAME : On Windows, makes patterns to match short names.
+
+  HELP
+
+  exit reason.nil? ? 0 : 1
+end
+print_help_and_exit if ARGV.any? { |a| a == '--help' }
+
+globish = ARGV.shift or print_help_and_exit('pattern required!')
+globflags = (ARGV.shift || '').split(',')
+
+$LOAD_PATH.unshift File.expand_path('../lib', __dir__)
+
+require "oh_my_glob/globber"
+
+globber = OhMyGlob::Globber.new(globish, globflags, report: %w(PREFLIGHT), logger: :warn_only)
+
+globber.each_file(on_trouble: :exit) do |file|
+  $stdout.puts(file)
+end
